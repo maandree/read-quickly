@@ -209,6 +209,7 @@ static int display_file(int fd, int ttyfd, long rate)
 
 	/* Present file. */
 	for (s = buffer; *s; s = end) {
+		sleep(1);
 		get_terminal_size();
 		while (isspace(*s))
 			s++;
@@ -219,7 +220,6 @@ static int display_file(int fd, int ttyfd, long rate)
 		t (fprintf(stdout, "\033[H\033[2J\033[%zu;%zuH%s",
 			   (height + 1) / 2, (width - display_len(s)) / 2 + 1, s) < 0);
 		t (fflush(stdout));
-		sleep(1);
 		*end = c;
 	}
 
