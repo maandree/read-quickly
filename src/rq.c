@@ -30,6 +30,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <termios.h>
+#include <signal.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 
@@ -40,7 +41,9 @@
 /**
  * The default word rate.
  */
-#define DEFAULT_RATE  120  /* 2 hz */
+#ifndef DEFAULT_RATE
+# define DEFAULT_RATE  120  /* 2 hz */
+#endif
 
 
 
@@ -48,6 +51,56 @@
  * The name of the process.
  */
 static const char *argv0;
+
+
+/**
+ * Have the terminal been resized?
+ */
+static volatile sig_atomic_t caught_sigwinch = 1;
+
+/**
+ * The width of the terminal.
+ */
+static size_t width = 80;
+
+/**
+ * The height of the terminal.
+ */
+static size_t height = 30;
+
+
+
+/**
+ * Signal handler for SIGWINCH.
+ * Invoked when the terminal resizes.
+ */
+static void sigwinch(int signo)
+{
+	signal(signo, sigwinch);
+	caught_sigwinch = 1;
+}
+
+
+
+/**
+ * Get the size of the terminal.
+ */
+static void get_terminal_size(void)
+{
+	struct winsize winsize;
+
+	if (!caught_sigwinch)
+		return;
+
+	caught_sigwinch = 0;
+
+	while (ioctl(STDOUT_FILENO, (unsigned long)TIOCGWINSZ, &winsize) < 0)
+		if (errno != EINTR)
+			return;
+
+	height = winsize.ws_row;
+	width = winsize.ws_col;
+}
 
 
 
@@ -97,6 +150,27 @@ static long get_word_rate(void)
 
 
 /**
+ * Count the number of character in a string.
+ * 
+ * Possible improvement:
+ *   Figure out how many columns the terminal is
+ *   likely to used to display the each character,
+ *   and sum it.
+ * 
+ * @param   s  The string.
+ * @return     The number of characters in `s`.
+ */
+static size_t display_len(const char *s)
+{
+	size_t r = 0;
+	for (; *s; s++)
+		r += (((int)*s & 0xC0) != 0x80);
+	return r;
+}
+
+
+
+/**
  * Display a file word by word.
  * 
  * @param   fd     File descriptor to the file.
@@ -135,13 +209,15 @@ static int display_file(int fd, int ttyfd, long rate)
 
 	/* Present file. */
 	for (s = buffer; *s; s = end) {
+		get_terminal_size();
 		while (isspace(*s))
 			s++;
 		end = strpbrk(s, " \f\n\r\t\v");
 		if (end == NULL)
 			end = strchr(s, '\0');
 		c = *end, *end = '\0';
-		t (fprintf(stdout, "\033[H\033[2J%s", s) < 0);
+		t (fprintf(stdout, "\033[H\033[2J\033[%zu;%zuH%s",
+			   (height + 1) / 2, (width - display_len(s)) / 2 + 1, s) < 0);
 		t (fflush(stdout));
 		sleep(1);
 		*end = c;
@@ -217,6 +293,7 @@ int main(int argc, char *argv[])
 	tty_configured = 1;
 
 	/* Display file. */
+	signal(SIGWINCH, sigwinch);
 	t (display_file(fd, ttyfd, rate));
 
 	/* Restore terminal configurations. */
