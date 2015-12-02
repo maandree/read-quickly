@@ -211,6 +211,7 @@ static int display_file(int fd, int ttyfd, long rate)
 	size_t size = 0;
 	void *new;
 	int saved_errno;
+	int timer_set = 1;
 	char *s;
 	char *end;
 	char c;
@@ -263,13 +264,17 @@ static int display_file(int fd, int ttyfd, long rate)
 			SET_RATE;
 			goto rewait;
 		case 'p': /* P */
-			;/* TODO pause*/
-			break;
+			if (timer_set)
+				memset(&interval, 0, sizeof(interval));
+			else
+				SET_RATE;
+			setitimer(ITIMER_REAL, &interval, NULL);
+			timer_set ^= 1;
+			goto rewait;
 		case 'q': /* Q */
 			goto done;
 		case 'B': /* down */
 		case 'C': /* right */
-			;/* TODO next */
 			break;
 		case 'A': /* up */
 		case 'D': /* left */
