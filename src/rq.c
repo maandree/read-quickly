@@ -56,6 +56,21 @@
 
 
 /**
+ * The a word.
+ */
+struct word {
+	/**
+	 * The word.
+	 */
+	const char *word;
+
+	/**
+	 * Should reverse video be applied?
+	 */
+	int reverse_video;
+};
+
+/**
  * The name of the process.
  */
 static const char *argv0;
@@ -79,6 +94,17 @@ static size_t width = 80;
  * The height of the terminal.
  */
 static size_t height = 30;
+
+/**
+ * The number of words.
+ */
+static size_t word_count = 0;
+
+/**
+ * All loaded words. Refer to `word_count`
+ * for the number of contained words.
+ */
+static struct word *words;
 
 
 
@@ -190,32 +216,25 @@ static size_t display_len(const char *s)
 
 
 /**
- * Display a file word by word.
+ * Load the file and do some preparsing.
  * 
- * @param   fd     File descriptor to the file.
- * @param   ttyfd  File descriptor for reading from the terminal.
- * @param   rate   The number of words per minute to display.
- * @return         0 on success, -1 on error.
+ * @param   fd  The file descriptor to the file, -1 to clean up instead.
+ * @return      0 on success, -1 on error.
  */
-static int display_file(int fd, int ttyfd, long rate)
+static int load_file(int fd)
 {
-#define SET_RATE \
-	(interval.it_value.tv_usec = 60000000L / rate, \
-	 interval.it_value.tv_sec = interval.it_value.tv_usec / 1000000L, \
-	 interval.it_value.tv_usec %= 1000000L)
-
-	ssize_t n;
-	char *buffer = NULL;
+	static char *buffer = NULL;
 	size_t ptr = 0;
 	size_t size = 0;
 	void *new;
 	int saved_errno;
-	int timer_set = 1;
 	char *s;
 	char *end;
-	char c;
-	struct itimerval interval;
-	memset(&interval, 0, sizeof(interval));
+	size_t i;
+	ssize_t n;
+
+	if (fd == -1)
+		return free(buffer), 0;
 
 	/* Load file. */
 	for (;;) {
@@ -237,16 +256,71 @@ static int display_file(int fd, int ttyfd, long rate)
 	if (buffer == NULL)
 		return 0;
 	if (ptr == size) {
-		new = realloc(buffer, ++size);
+		new = realloc(buffer, size += 2);
 		t (new == NULL);
 		buffer = new;
 	}
 	buffer[ptr++] = '\0';
+	buffer[ptr++] = '\0';
 
-	/* Present file. */
+	/* Split words. */
+	size = 0;
+	for (s = buffer; *s; s = end + 1) {
+		if (word_count == size) {
+			size = size ? (size << 1) : 512;
+			new = realloc(words, size * sizeof(char*));
+			t (new == NULL);
+			words = new;
+		}
+		while (isspace(*s))
+			s++;
+		end = strpbrk(s, " \f\n\r\t\v");
+		if (end == NULL)
+			end = strchr(s, '\0');
+		*end = '\0';
+		words[word_count].word = s;
+		words[word_count].reverse_video = 0;
+		word_count++;
+	}
+
+	/* Figure out which words should have reverse video. */
+	for (i = 1; i < word_count; i++)
+		if (!strcmp(words[i].word, words[i - 1].word))
+			words[i].reverse_video = words[i - 1].reverse_video ^ 1;
+
+	return 0;
+fail:
+	saved_errno = errno;
+	free(buffer), buffer = NULL;
+	errno = saved_errno;
+	return -1;
+}
+
+
+/**
+ * Display a file word by word.
+ * 
+ * @param   ttyfd  File descriptor for reading from the terminal.
+ * @param   rate   The number of words per minute to display.
+ * @return         0 on success, -1 on error.
+ */
+static int display_file(int ttyfd, long rate)
+{
+#define SET_RATE \
+	(interval.it_value.tv_usec = 60000000L / rate, \
+	 interval.it_value.tv_sec = interval.it_value.tv_usec / 1000000L, \
+	 interval.it_value.tv_usec %= 1000000L)
+
+	ssize_t n;
+	int timer_set = 1;
+	char c;
+	size_t i;
+	struct itimerval interval;
+	memset(&interval, 0, sizeof(interval));
+
 	SET_RATE;
-	for (s = buffer; *s; s = end) {
-		setitimer(ITIMER_REAL, &interval, NULL);
+	for (i = 0; i < word_count; i++) {
+		t (setitimer(ITIMER_REAL, &interval, NULL));
 	rewait:
 		n = read(ttyfd, &c, sizeof(c));
 		if (n < 0) {
@@ -267,7 +341,7 @@ static int display_file(int fd, int ttyfd, long rate)
 				memset(&interval, 0, sizeof(interval));
 			else
 				SET_RATE;
-			setitimer(ITIMER_REAL, &interval, NULL);
+			t (setitimer(ITIMER_REAL, &interval, NULL));
 			timer_set ^= 1;
 			goto rewait;
 		case 'q': /* Q */
@@ -277,12 +351,7 @@ static int display_file(int fd, int ttyfd, long rate)
 			break;
 		case 'A': /* up */
 		case 'D': /* left */
-			while ((s != buffer) &&  strchr(" \f\n\r\t\v", *s))  s--;
-			while ((s != buffer) && !strchr(" \f\n\r\t\v", *s))  s--;
-			while ((s != buffer) &&  strchr(" \f\n\r\t\v", *s))  s--;
-			while ((s != buffer) && !strchr(" \f\n\r\t\v", *s))  s--;
-			if (s == buffer)
-				goto rewait;
+			i = (i < 2 ? 0 : (i - 2));
 			break;
 		case 0:
 			if (!caught_sigalrm)
@@ -292,27 +361,24 @@ static int display_file(int fd, int ttyfd, long rate)
 		default:
 			goto rewait;
 		}
+
 		get_terminal_size();
-		while (isspace(*s))
-			s++;
-		end = strpbrk(s, " \f\n\r\t\v");
-		if (end == NULL)
-			end = strchr(s, '\0');
-		c = *end, *end = '\0';
-		t (fprintf(stdout, "\033[H\033[2J\033[%zu;%zuH%s",
-			   (height + 1) / 2, (width - display_len(s)) / 2 + 1, s) < 0);
+		t (fprintf(stdout, "\033[H\033[2J\033[%zu;%zuH%s%s%s",
+			   (height + 1) / 2,
+			   (width - display_len(words[i].word)) / 2 + 1,
+			   words[i].reverse_video ? "\033[7m" : "",
+			   words[i].word,
+			   words[i].reverse_video ? "\033[27m" : "") < 0);
 		t (fflush(stdout));
-		*end = c;
 	}
 
+	t (setitimer(ITIMER_REAL, &interval, NULL));
+	(void) read(ttyfd, &c, sizeof(c));
+
 done:
-	free(buffer);
 	return 0;
 
 fail:
-	saved_errno = errno;
-	free(buffer);
-	errno = saved_errno;
 	return -1;
 }
 
@@ -361,6 +427,12 @@ int main(int argc, char *argv[])
 		t (fd == -1);
 	}
 
+	/* Load file. */
+	t (load_file(fd));
+
+	/* We do not need the file anymore. */
+	close(fd), fd = -1;
+
 	/* Get a readable file descriptor for the controlling terminal. */
 	ttyfd = open("/dev/tty", O_RDONLY);
 	t (ttyfd == -1);
@@ -377,7 +449,7 @@ int main(int argc, char *argv[])
 	/* Display file. */
 	signal(SIGALRM, sigalrm);
 	signal(SIGWINCH, sigwinch);
-	t (display_file(fd, ttyfd, rate));
+	t (display_file(ttyfd, rate));
 
 	/* Restore terminal configurations. */
 	tcsetattr(ttyfd, TCSAFLUSH, &saved_stty);
@@ -385,12 +457,15 @@ int main(int argc, char *argv[])
 	fflush(stdout);
 	tty_configured = 0;
 
-	close(fd);
+	free(words);
+	load_file(-1);
 	close(ttyfd);
 	return 0;
 
 fail:
 	perror(argv0);
+	free(words);
+	load_file(-1);
 	if (tty_configured) {
 		tcsetattr(ttyfd, TCSAFLUSH, &saved_stty);
 		fprintf(stdout, "\033[?25h\033[?1049l");
