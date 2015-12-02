@@ -1,0 +1,60 @@
+NAME
+	rq - read quickly
+
+SYNOPSIS
+	rq [FILE]
+
+DESCRIPTION
+	Displays a plain-text file word-by-word in the middle
+	of the terminal. Words are automatically paged in a
+	specifyable rate, by default 2 words per second.
+	Repeated words will be indicated by alternating reverse
+	video highlighting.
+
+	Escape sequences are printed as-is.
+
+	If no file is specified, or if '-' i specified, stdin
+	will be paged.
+
+OPTIONS
+	None.
+
+ENVIRONMENT
+	RQ_RATE
+		The rate at which the words will be printed.
+		Defaults to 120 words per minute.
+
+		This should a positive integer optionally
+		followed by a unit. If no unit is specified,
+		words per minute will be used. Value units
+		are (case, insensitive):
+
+		wpm
+		w/m
+		/m
+		wpmin
+		w/min
+		/min    Words per minute.
+
+		wpsec
+		w/sec
+		/sec
+		wps
+		w/s
+		/s
+		Hz      Words per second.
+
+COMMANDS
+	+       Increase word rate.
+	-       Decrease word rate.
+	p       Pause/resume.
+	q       Exit.
+	left    Go to the previous word.
+	up      Go to the previous word.
+	right   Go to next previous word.
+	down    Go to next previous word.
+
+SEE ALSO
+	No similar or otherwise related work known.
+	Please inform me if you know any.
+
