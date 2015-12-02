@@ -46,6 +46,13 @@
 # define DEFAULT_RATE  120  /* 2 hz */
 #endif
 
+/**
+ * Delta-value of rate increment and rate decrement.
+ */
+#ifndef RATE_DELTA
+# define RATE_DELTA  10  /* 10/min */
+#endif
+
 
 
 /**
@@ -193,6 +200,11 @@ static size_t display_len(const char *s)
  */
 static int display_file(int fd, int ttyfd, long rate)
 {
+#define SET_RATE \
+	(interval.it_value.tv_usec = 60000000L / rate, \
+	 interval.it_value.tv_sec = interval.it_value.tv_usec / 1000000L, \
+	 interval.it_value.tv_usec %= 1000000L)
+
 	ssize_t n;
 	char *buffer = NULL;
 	size_t ptr = 0;
@@ -220,15 +232,54 @@ static int display_file(int fd, int ttyfd, long rate)
 		} else if (n == 0) {
 			break;
 		}
+		ptr += (size_t)n;
 	}
+	if (buffer == NULL)
+		return 0;
+	if (ptr == size) {
+		new = realloc(buffer, ++size);
+		t (new == NULL);
+		buffer = new;
+	}
+	buffer[ptr++] = '\0';
 
 	/* Present file. */
-	interval.it_value.tv_usec = 60000000L / rate;
-	interval.it_value.tv_sec = interval.it_value.tv_usec / 1000000L;
-	interval.it_value.tv_usec %= 1000000L;
+	SET_RATE;
 	for (s = buffer; *s; s = end) {
 		setitimer(ITIMER_REAL, &interval, NULL);
-		pause();
+	rewait:
+		n = read(ttyfd, &c, sizeof(c));
+		if (n < 0) {
+			t (errno != EINTR);
+			c = 0;
+		} else if (n == 0) {
+			break;
+		}
+		switch (c) {
+		case '+': /* plus */
+		case '-': /* hyphen */
+			rate += (c == '+' ? RATE_DELTA : -RATE_DELTA);
+			rate = (rate <= 0 ? 1 : rate);
+			SET_RATE;
+			goto rewait;
+		case 'p': /* P */
+			;/* TODO pause*/
+			break;
+		case 'q': /* Q */
+			goto done;
+		case 'B': /* down */
+		case 'C': /* right */
+			;/* TODO next */
+			break;
+		case 'A': /* up */
+		case 'D': /* left */
+			;/* TODO previous */
+			break;
+		case 0:
+			break;
+		default:
+			goto rewait;
+		}
 		get_terminal_size();
 		while (isspace(*s))
 			s++;
@@ -242,6 +293,7 @@ static int display_file(int fd, int ttyfd, long rate)
 		*end = c;
 	}
 
+done:
 	free(buffer);
 	return 0;
 
