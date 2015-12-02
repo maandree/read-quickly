@@ -278,7 +278,12 @@ static int display_file(int fd, int ttyfd, long rate)
 			break;
 		case 'A': /* up */
 		case 'D': /* left */
-			;/* TODO previous */
+			while ((s != buffer) &&  strchr(" \f\n\r\t\v", *s))  s--;
+			while ((s != buffer) && !strchr(" \f\n\r\t\v", *s))  s--;
+			while ((s != buffer) &&  strchr(" \f\n\r\t\v", *s))  s--;
+			while ((s != buffer) && !strchr(" \f\n\r\t\v", *s))  s--;
+			if (s == buffer)
+				goto rewait;
 			break;
 		case 0:
 			break;
