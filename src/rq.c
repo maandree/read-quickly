@@ -96,6 +96,69 @@ static long get_word_rate(void)
 
 
 
+/**
+ * Display a file word by word.
+ * 
+ * @param   fd     File descriptor to the file.
+ * @param   ttyfd  File descriptor for reading from the terminal.
+ * @param   rate   The number of words per minute to display.
+ * @return         0 on success, -1 on error.
+ */
+static int display_file(int fd, int ttyfd, long rate)
+{
+	ssize_t n;
+	char *buffer = NULL;
+	size_t ptr = 0;
+	size_t size = 0;
+	void *new;
+	int saved_errno;
+	char *s;
+	char *end;
+	char c;
+
+	/* Load file. */
+	for (;;) {
+		if (ptr == size) {
+			size = size ? (size << 1) : (8 << 10);
+			new = realloc(buffer, size);
+			t (new == NULL);
+			buffer = new;
+		}
+		n = read(fd, buffer + ptr, size - ptr);
+		if (n < 0) {
+			t (errno != EINTR);
+			continue;
+		} else if (n == 0) {
+			break;
+		}
+	}
+
+	/* Present file. */
+	for (s = buffer; *s; s = end) {
+		while (isspace(*s))
+			s++;
+		end = strpbrk(s, " \f\n\r\t\v");
+		if (end == NULL)
+			end = strchr(s, '\0');
+		c = *end, *end = '\0';
+		t (fprintf(stdout, "\033[H\033[2J%s", s) < 0);
+		t (fflush(stdout));
+		sleep(1);
+		*end = c;
+	}
+
+	free(buffer);
+	return 0;
+
+fail:
+	saved_errno = errno;
+	free(buffer);
+	errno = saved_errno;
+	return -1;
+}
+
+
+
 int main(int argc, char *argv[])
 {
 	int dashed = 0;
@@ -153,7 +216,8 @@ int main(int argc, char *argv[])
 	t (tcsetattr(ttyfd, TCSAFLUSH, &stty));
 	tty_configured = 1;
 
-	/* TODO Display file. */
+	/* Display file. */
+	t (display_file(fd, ttyfd, rate));
 
 	/* Restore terminal configurations. */
 	tcsetattr(ttyfd, TCSAFLUSH, &saved_stty);
