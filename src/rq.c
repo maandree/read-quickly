@@ -60,7 +60,6 @@
  */
 static const char *argv0;
 
-
 /**
  * Have the terminal been resized?
  */
@@ -286,6 +285,9 @@ static int display_file(int fd, int ttyfd, long rate)
 				goto rewait;
 			break;
 		case 0:
+			if (!caught_sigalrm)
+				goto rewait;
+			caught_sigalrm = 0;
 			break;
 		default:
 			goto rewait;
