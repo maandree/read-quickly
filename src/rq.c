@@ -33,6 +33,7 @@
 #include <signal.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 
 #define t(...) do { if (__VA_ARGS__) goto fail; } while (0)
 
@@ -59,6 +60,11 @@ static const char *argv0;
 static volatile sig_atomic_t caught_sigwinch = 1;
 
 /**
+ * Has the timer expired?
+ */
+static volatile sig_atomic_t caught_sigalrm = 0;
+
+/**
  * The width of the terminal.
  */
 static size_t width = 80;
@@ -81,6 +87,16 @@ static void sigwinch(int signo)
 }
 
 
+/**
+ * Signal handler for SIGALRM.
+ * Invoked when the timer expires.
+ */
+static void sigalrm(int signo)
+{
+	signal(signo, sigalrm);
+	caught_sigalrm = 1;
+}
+
 
 /**
  * Get the size of the terminal.
@@ -101,7 +117,6 @@ static void get_terminal_size(void)
 	height = winsize.ws_row;
 	width = winsize.ws_col;
 }
-
 
 
 /**
@@ -148,7 +163,6 @@ static long get_word_rate(void)
 }
 
 
-
 /**
  * Count the number of character in a string.
  * 
@@ -167,7 +181,6 @@ static size_t display_len(const char *s)
 		r += (((int)*s & 0xC0) != 0x80);
 	return r;
 }
-
 
 
 /**
@@ -189,6 +202,8 @@ static int display_file(int fd, int ttyfd, long rate)
 	char *s;
 	char *end;
 	char c;
+	struct itimerval interval;
+	memset(&interval, 0, sizeof(interval));
 
 	/* Load file. */
 	for (;;) {
@@ -208,8 +223,12 @@ static int display_file(int fd, int ttyfd, long rate)
 	}
 
 	/* Present file. */
+	interval.it_value.tv_usec = 60000000L / rate;
+	interval.it_value.tv_sec = interval.it_value.tv_usec / 1000000L;
+	interval.it_value.tv_usec %= 1000000L;
 	for (s = buffer; *s; s = end) {
-		sleep(1);
+		setitimer(ITIMER_REAL, &interval, NULL);
+		pause();
 		get_terminal_size();
 		while (isspace(*s))
 			s++;
@@ -232,7 +251,6 @@ fail:
 	errno = saved_errno;
 	return -1;
 }
-
 
 
 int main(int argc, char *argv[])
@@ -293,6 +311,7 @@ int main(int argc, char *argv[])
 	tty_configured = 1;
 
 	/* Display file. */
+	signal(SIGALRM, sigalrm);
 	signal(SIGWINCH, sigwinch);
 	t (display_file(fd, ttyfd, rate));
 
