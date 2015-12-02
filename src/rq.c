@@ -320,7 +320,7 @@ fail:
 	return 1;
 
 usage:
-	fprintf(stderr, "%s: Invalid arguments, see `man 1 rp'.\n", argv0);
+	fprintf(stderr, "%s: Invalid arguments, see `man 1 rq'.\n", argv0);
 	return 2;
 }
 
