@@ -1,0 +1,79 @@
+.TH RQ 1 RQ
+.SH NAME
+rq \- read quickly
+.SH SYNOPSIS
+.B rq
+.RI [ FILE ]
+.SH DESCRIPTION
+Displays a plain-text file word-by-word in the middle
+of the terminal. Words are automatically paged in a
+specifyable rate, by default 2 words per second.
+Repeated words will be indicated by alternating reverse
+video highlighting.
+.PP
+Escape sequences are printed as-is.
+.PP
+If no file is specified, or if \- i specified,
+stdin will be paged.
+.SH OPTIONS
+None.
+.SH ENVIRONMENT
+.TP
+.B RQ_RATE
+The rate at which the words will be printed.
+Defaults to 120 words per minute.
+.br
+.br
+This should a positive integer optionally
+followed by a unit. If no unit is specified,
+words per minute will be used. Value units
+are (case-insensitive):
+.nf
+.PP
+.B \ \ \ \ \ \ \ wpm
+.B \ \ \ \ \ \ \ w/m
+.B \ \ \ \ \ \ \ m
+.B \ \ \ \ \ \ \ wpmin
+.B \ \ \ \ \ \ \ w/min
+.BR \ \ \ \ \ \ \ /min\ \ \ \  Words\ per\ minute.
+.PP
+.B \ \ \ \ \ \ \ wpsec
+.B \ \ \ \ \ \ \ w/sec
+.B \ \ \ \ \ \ \ /sec
+.B \ \ \ \ \ \ \ wps
+.B \ \ \ \ \ \ \ w/s
+.B \ \ \ \ \ \ \ /s
+.BR \ \ \ \ \ \ \ Hz\ \ \ \ \ \  Words\ per\ second.
+.fi
+.SH COMMANDS
+.TP
+.B \+
+Increase word rate.
+.TP
+.B \-
+Decrease word rate.
+.TP
+.B p
+Pause/resume.
+.TP
+.B q
+Exit.
+.TP
+.BR left ,\  up
+Go to the previous word.
+.TP
+.BR right ,\  down
+Go to next previous word.
+.SH RATIONALE
+This should be obvious.
+.SH SEE ALSO
+No similar or otherwise related work known.
+Please inform me if you know any.
+.SH AUTHORS
+Principal author, Mattias Andrée.  See the LICENSE file for the full
+list of authors.
+.SH LICENSE
+MIT/X Consortium License.
+.SH BUGS
+Please report bugs to https://github.com/maandree/rq/issues or to
+maandree@member.fsf.org

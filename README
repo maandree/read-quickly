@@ -27,7 +27,7 @@ ENVIRONMENT
 		This should a positive integer optionally
 		followed by a unit. If no unit is specified,
 		words per minute will be used. Value units
-		are (case, insensitive):
+		are (case-insensitive):
 
 		wpm
 		w/m
@@ -53,6 +53,9 @@ COMMANDS
 	up      Go to the previous word.
 	right   Go to next previous word.
 	down    Go to next previous word.
+
+RATIONALE
+	This should be obvious.
 
 SEE ALSO
 	No similar or otherwise related work known.
