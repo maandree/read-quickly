@@ -268,7 +268,7 @@ static int load_file(int fd)
 	for (s = buffer; *s; s = end + 1) {
 		if (word_count == size) {
 			size = size ? (size << 1) : 512;
-			new = realloc(words, size * sizeof(char*));
+			new = realloc(words, size * sizeof(*words));
 			t (new == NULL);
 			words = new;
 		}
