@@ -65,10 +65,15 @@ Texts. A copy of the license is included in the section entitled
 @command{rq} displays a plain-text word-by-word in the middle
 of the terminal. Words are automatically paged in a
 specifiable rate, by default 2 words per second.
+This is a bit slow, you should turn it up when
+gradually until your performance has been optimised.
 Repeated words will be indicated by alternating reverse
 video highlighting.
 
 Escape sequences are printed as-is.
+
+@command{rq} uses a method called rapid serial visual
+presentation.
 
 
 

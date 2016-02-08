@@ -8,6 +8,8 @@ rq \- read quickly
 Displays a plain-text file word-by-word in the middle
 of the terminal. Words are automatically paged in a
 specifiable rate, by default 2 words per second.
+This is a bit slow, you should turn it up when
+gradually until your performance has been optimised.
 Repeated words will be indicated by alternating reverse
 video highlighting.
 .PP
@@ -15,6 +17,9 @@ Escape sequences are printed as-is.
 .PP
 If no file is specified, or if \- i specified,
 stdin will be paged.
+.PP
+.B rq
+uses a method called rapid serial visual presentation.
 .SH OPTIONS
 None.
 .SH ENVIRONMENT
@@ -68,7 +73,8 @@ Go to next previous word.
 This should be obvious.
 .SH SEE ALSO
 No similar or otherwise related work known.
-Please inform me if you know any.
+Please inform me if you know any. There probably
+is a bunch.
 .SH AUTHORS
 Principal author, Mattias Andrée.  See the LICENSE file for the full
 list of authors.

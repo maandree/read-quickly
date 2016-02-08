@@ -8,6 +8,8 @@ DESCRIPTION
 	Displays a plain-text file word-by-word in the middle
 	of the terminal. Words are automatically paged in a
 	specifiable rate, by default 2 words per second.
+	This is a bit slow, you should turn it up when
+	gradually until your performance has been optimised.
 	Repeated words will be indicated by alternating reverse
 	video highlighting.
 
@@ -15,6 +17,8 @@ DESCRIPTION
 
 	If no file is specified, or if '-' i specified, stdin
 	will be paged.
+
+	rq uses a method called rapid serial visual presentation.
 
 OPTIONS
 	None.
@@ -59,5 +63,6 @@ RATIONALE
 
 SEE ALSO
 	No similar or otherwise related work known.
-	Please inform me if you know any.
+	Please inform me if you know any. There probably
+	is a bunch.
 
