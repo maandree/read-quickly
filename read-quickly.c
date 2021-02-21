@@ -131,7 +131,7 @@ get_terminal_size(void)
 
 /**
  * Get the selected word rate by reading
- * the environment variable RQ_RATE.
+ * the environment variable READ_QUICKLY_RATE.
  * 
  * @return  The rate in words per minute.
  */
@@ -142,7 +142,7 @@ get_word_rate(void)
 	long r;
 
 	errno = 0;
-	s = getenv("RQ_RATE");
+	s = getenv("READ_QUICKLY_RATE");
 	if (!s || !*s || !isdigit(*s))
 		return DEFAULT_RATE;
 
@@ -389,7 +389,7 @@ main(int argc, char *argv[])
 	struct sigaction sa;
 
 	/* Parse arguments. */
-	argv0 = argv ? (argc--, *argv++) : "rq";
+	argv0 = argv ? (argc--, *argv++) : "read-quickly";
 	if (argc && argv[0][0] == '-') {
 		if (argv[0][1] == '-' && !argv[0][2]) {
 			argc--;

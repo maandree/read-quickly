@@ -1,8 +1,8 @@
 NAME
-	rq - read quickly
+	read-quickly - read quickly
 
 SYNOPSIS
-	rq [FILE]
+	read-quickly [FILE]
 
 DESCRIPTION
 	Displays a plain-text file word-by-word in the middle
@@ -18,13 +18,14 @@ DESCRIPTION
 	If no file is specified, or if '-' i specified, stdin
 	will be paged.
 
-	rq uses a method called rapid serial visual presentation.
+	read-quickly uses a method called rapid serial visual
+	presentation.
 
 OPTIONS
 	None.
 
 ENVIRONMENT
-	RQ_RATE
+	READ_QUICKLY_RATE
 		The rate at which the words will be printed.
 		Defaults to 120 words per minute.
 
