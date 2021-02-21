@@ -5,13 +5,16 @@
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <signal.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
 #include <termios.h>
 #include <unistd.h>
+#include <wchar.h>
 
 
 
@@ -115,18 +118,14 @@ static void
 get_terminal_size(void)
 {
 	struct winsize winsize;
-
-	if (!caught_sigwinch)
-		return;
-
-	caught_sigwinch = 0;
-
-	while (ioctl(STDOUT_FILENO, (unsigned long)TIOCGWINSZ, &winsize) < 0)
-		if (errno != EINTR)
-			return;
-
-	height = winsize.ws_row;
-	width = winsize.ws_col;
+	if (caught_sigwinch) {
+		caught_sigwinch = 0;
+		while (ioctl(STDOUT_FILENO, (unsigned long)TIOCGWINSZ, &winsize) < 0)
+			if (errno != EINTR)
+				return;
+		height = winsize.ws_row;
+		width = winsize.ws_col;
+	}
 }
 
 
@@ -139,7 +138,7 @@ get_terminal_size(void)
 static long
 get_word_rate(void)
 {
-	char *s, *e;
+	char *s;
 	long r;
 
 	errno = 0;
@@ -147,26 +146,26 @@ get_word_rate(void)
 	if (!s || !*s || !isdigit(*s))
 		return DEFAULT_RATE;
 
-	r = strtol(s, &e, 10);
+	r = strtol(s, &s, 10);
 	if (r <= 0)
 		return DEFAULT_RATE;
-	while (*e == ' ')
-		e++;
+	while (*s == ' ')
+		s++;
 
-	if      (!*e)                      r *= 1;
-	else if (!strcasecmp(e, "wpm"))    r *= 1;
-	else if (!strcasecmp(e, "w/m"))    r *= 1;
-	else if (!strcasecmp(e, "/m"))     r *= 1;
-	else if (!strcasecmp(e, "wpmin"))  r *= 1;
-	else if (!strcasecmp(e, "w/min"))  r *= 1;
-	else if (!strcasecmp(e, "/min"))   r *= 1;
-	else if (!strcasecmp(e, "wps"))    r *= 60;
-	else if (!strcasecmp(e, "w/s"))    r *= 60;
-	else if (!strcasecmp(e, "/s"))     r *= 60;
-	else if (!strcasecmp(e, "wpsec"))  r *= 60;
-	else if (!strcasecmp(e, "w/sec"))  r *= 60;
-	else if (!strcasecmp(e, "/sec"))   r *= 60;
-	else if (!strcasecmp(e, "hz"))     r *= 60;
+	if      (!*s)                      r *= 1;
+	else if (!strcasecmp(s, "wpm"))    r *= 1;
+	else if (!strcasecmp(s, "w/m"))    r *= 1;
+	else if (!strcasecmp(s, "/m"))     r *= 1;
+	else if (!strcasecmp(s, "wpmin"))  r *= 1;
+	else if (!strcasecmp(s, "w/min"))  r *= 1;
+	else if (!strcasecmp(s, "/min"))   r *= 1;
+	else if (!strcasecmp(s, "wps"))    r *= 60;
+	else if (!strcasecmp(s, "w/s"))    r *= 60;
+	else if (!strcasecmp(s, "/s"))     r *= 60;
+	else if (!strcasecmp(s, "wpsec"))  r *= 60;
+	else if (!strcasecmp(s, "w/sec"))  r *= 60;
+	else if (!strcasecmp(s, "/sec"))   r *= 60;
+	else if (!strcasecmp(s, "hz"))     r *= 60;
 	else
 		return DEFAULT_RATE;
 
@@ -177,11 +176,6 @@ get_word_rate(void)
 /**
  * Count the number of character in a string.
  * 
- * Possible improvement:
- *   Figure out how many columns the terminal is
- *   likely to used to display the each character,
- *   and sum it.
- * 
  * @param   s  The string.
  * @return     The number of characters in `s`.
  */
@@ -189,8 +183,17 @@ static size_t
 display_len(const char *s)
 {
 	size_t r = 0;
-	for (; *s; s++)
-		r += (((int)*s & 0xC0) != 0x80);
+	wchar_t wc;
+	int len, w;
+	for (; *s; s += len) {
+		len = mbtowc(&wc, s, SIZE_MAX);
+		if (len <= 0)
+			break;
+		w = wcwidth(wc);
+		if (w < 0)
+			break;
+		r += (size_t)w;
+	}
 	return r;
 }
 
@@ -220,38 +223,36 @@ load_file(int fd)
 	/* Load file. */
 	for (;;) {
 		if (ptr == size) {
-			size = size ? (size << 1) : (8 << 10);
+			size = size ? size << 1 : 8 << 10;
 			new = realloc(buffer, size);
 			if (!new)
 				goto fail;
 			buffer = new;
 		}
 		n = read(fd, buffer + ptr, size - ptr);
-		if (n < 0) {
-			if (errno != EINTR)
-				goto fail;
-			continue;
-		} else if (n == 0) {
-			break;
+		if (n <= 0) {
+			if (!n)
+				break;
+			if (errno == EINTR)
+				continue;
+			goto fail;
 		}
 		ptr += (size_t)n;
 	}
-	if (buffer == NULL)
+	if (!buffer)
 		return 0;
-	if (ptr == size) {
-		new = realloc(buffer, size += 2);
-		if (!new)
-			goto fail;
-		buffer = new;
-	}
+	new = realloc(buffer, ptr + 2);
+	if (!new)
+		goto fail;
+	buffer = new;
 	buffer[ptr++] = '\0';
 	buffer[ptr++] = '\0';
 
 	/* Split words. */
 	size = 0;
-	for (s = buffer; *s; s = end + 1) {
+	for (s = buffer; *s; s = &end[1]) {
 		if (word_count == size) {
-			size = size ? (size << 1) : 512;
+			size = size ? size << 1 : 512;
 			new = realloc(words, size * sizeof(*words));
 			if (!new)
 				goto fail;
@@ -260,7 +261,7 @@ load_file(int fd)
 		while (isspace(*s))
 			s++;
 		end = strpbrk(s, " \f\n\r\t\v");
-		if (end == NULL)
+		if (!end)
 			end = strchr(s, '\0');
 		*end = '\0';
 		words[word_count].word = s;
@@ -277,7 +278,8 @@ load_file(int fd)
 
 fail:
 	saved_errno = errno;
-	free(buffer), buffer = NULL;
+	free(buffer);
+	buffer = NULL;
 	errno = saved_errno;
 	return -1;
 }
@@ -381,7 +383,6 @@ int
 main(int argc, char *argv[])
 {
 	long rate = get_word_rate();
-	char *file = NULL;
 	int fd = -1, ttyfd = -1, tty_configured = 0;
 	struct termios stty, saved_stty;
 	struct stat _attr;
@@ -406,12 +407,12 @@ main(int argc, char *argv[])
 			goto fail;
 
 	/* Open file. */
-	if (!file || !strcmp(file, "-")) {
-		fd = STDIN_FILENO;
-	} else {
-		fd = open(file, O_RDONLY);
+	if (argc && strcmp(*argv, "-")) {
+		fd = open(*argv, O_RDONLY);
 		if (fd < 0)
 			goto fail;
+	} else {
+		fd = STDIN_FILENO;
 	}
 
 	/* Load file. */
