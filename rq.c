@@ -1,41 +1,17 @@
-/**
- * MIT/X Consortium License
- * 
- * Copyright © 2015  Mattias Andrée <maandree@member.fsf.org>
- * 
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- * 
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- * DEALINGS IN THE SOFTWARE.
- */
-#include <stdio.h>
-#include <stdlib.h>
-#include <ctype.h>
-#include <string.h>
-#include <strings.h>
-#include <errno.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <termios.h>
-#include <signal.h>
+/* See LICENSE file for copyright and license details. */
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/time.h>
-
-#define t(...) do { if (__VA_ARGS__) goto fail; } while (0)
+#include <ctype.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <strings.h>
+#include <termios.h>
+#include <unistd.h>
 
 
 
@@ -112,10 +88,11 @@ static struct word *words;
  * Signal handler for SIGWINCH.
  * Invoked when the terminal resizes.
  */
-static void sigwinch(int signo)
+static void
+sigwinch(int signo)
 {
-	signal(signo, sigwinch);
 	caught_sigwinch = 1;
+	(void) signo;
 }
 
 
@@ -123,17 +100,19 @@ static void sigwinch(int signo)
  * Signal handler for SIGALRM.
  * Invoked when the timer expires.
  */
-static void sigalrm(int signo)
+static void
+sigalrm(int signo)
 {
-	signal(signo, sigalrm);
 	caught_sigalrm = 1;
+	(void) signo;
 }
 
 
 /**
  * Get the size of the terminal.
  */
-static void get_terminal_size(void)
+static void
+get_terminal_size(void)
 {
 	struct winsize winsize;
 
@@ -157,10 +136,10 @@ static void get_terminal_size(void)
  * 
  * @return  The rate in words per minute.
  */
-static long get_word_rate(void)
+static long
+get_word_rate(void)
 {
-	char *s;
-	char *e;
+	char *s, *e;
 	long r;
 
 	errno = 0;
@@ -206,7 +185,8 @@ static long get_word_rate(void)
  * @param   s  The string.
  * @return     The number of characters in `s`.
  */
-static size_t display_len(const char *s)
+static size_t
+display_len(const char *s)
 {
 	size_t r = 0;
 	for (; *s; s++)
@@ -221,7 +201,8 @@ static size_t display_len(const char *s)
  * @param   fd  The file descriptor to the file, -1 to clean up instead.
  * @return      0 on success, -1 on error.
  */
-static int load_file(int fd)
+static int
+load_file(int fd)
 {
 	static char *buffer = NULL;
 	size_t ptr = 0;
@@ -241,12 +222,14 @@ static int load_file(int fd)
 		if (ptr == size) {
 			size = size ? (size << 1) : (8 << 10);
 			new = realloc(buffer, size);
-			t (new == NULL);
+			if (!new)
+				goto fail;
 			buffer = new;
 		}
 		n = read(fd, buffer + ptr, size - ptr);
 		if (n < 0) {
-			t (errno != EINTR);
+			if (errno != EINTR)
+				goto fail;
 			continue;
 		} else if (n == 0) {
 			break;
@@ -257,7 +240,8 @@ static int load_file(int fd)
 		return 0;
 	if (ptr == size) {
 		new = realloc(buffer, size += 2);
-		t (new == NULL);
+		if (!new)
+			goto fail;
 		buffer = new;
 	}
 	buffer[ptr++] = '\0';
@@ -269,7 +253,8 @@ static int load_file(int fd)
 		if (word_count == size) {
 			size = size ? (size << 1) : 512;
 			new = realloc(words, size * sizeof(*words));
-			t (new == NULL);
+			if (!new)
+				goto fail;
 			words = new;
 		}
 		while (isspace(*s))
@@ -289,6 +274,7 @@ static int load_file(int fd)
 			words[i].reverse_video = words[i - 1].reverse_video ^ 1;
 
 	return 0;
+
 fail:
 	saved_errno = errno;
 	free(buffer), buffer = NULL;
@@ -304,7 +290,8 @@ fail:
  * @param   rate   The number of words per minute to display.
  * @return         0 on success, -1 on error.
  */
-static int display_file(int ttyfd, long rate)
+static int
+display_file(int ttyfd, long rate)
 {
 #define SET_RATE \
 	(interval.it_value.tv_usec = 60000000L / rate, \
@@ -316,15 +303,18 @@ static int display_file(int ttyfd, long rate)
 	char c;
 	size_t i;
 	struct itimerval interval;
+
 	memset(&interval, 0, sizeof(interval));
 
 	SET_RATE;
 	for (i = 0; i < word_count; i++) {
-		t (setitimer(ITIMER_REAL, &interval, NULL));
+		if (setitimer(ITIMER_REAL, &interval, NULL))
+			goto fail;
 	rewait:
 		n = read(ttyfd, &c, sizeof(c));
 		if (n < 0) {
-			t (errno != EINTR);
+			if (errno != EINTR)
+				goto fail;
 			c = 0;
 		} else if (n == 0) {
 			break;
@@ -332,8 +322,8 @@ static int display_file(int ttyfd, long rate)
 		switch (c) {
 		case '+': /* plus */
 		case '-': /* hyphen */
-			rate += (c == '+' ? RATE_DELTA : -RATE_DELTA);
-			rate = (rate <= 0 ? 1 : rate);
+			rate += c == '+' ? RATE_DELTA : -RATE_DELTA;
+			rate = rate <= 0 ? 1 : rate;
 			SET_RATE;
 			goto rewait;
 		case 'p': /* P */
@@ -341,7 +331,8 @@ static int display_file(int ttyfd, long rate)
 				memset(&interval, 0, sizeof(interval));
 			else
 				SET_RATE;
-			t (setitimer(ITIMER_REAL, &interval, NULL));
+			if (setitimer(ITIMER_REAL, &interval, NULL))
+				goto fail;
 			timer_set ^= 1;
 			goto rewait;
 		case 'q': /* Q */
@@ -351,7 +342,7 @@ static int display_file(int ttyfd, long rate)
 			break;
 		case 'A': /* up */
 		case 'D': /* left */
-			i = (i < 2 ? 0 : (i - 2));
+			i = i < 2 ? 0 : i - 2;
 			break;
 		case 0:
 			if (!caught_sigalrm)
@@ -363,16 +354,19 @@ static int display_file(int ttyfd, long rate)
 		}
 
 		get_terminal_size();
-		t (fprintf(stdout, "\033[H\033[2J\033[%zu;%zuH%s%s%s",
-			   (height + 1) / 2,
-			   (width - display_len(words[i].word)) / 2 + 1,
-			   words[i].reverse_video ? "\033[7m" : "",
-			   words[i].word,
-			   words[i].reverse_video ? "\033[27m" : "") < 0);
-		t (fflush(stdout));
+		if (fprintf(stdout, "\033[H\033[2J\033[%zu;%zuH%s%s%s",
+		            (height + 1) / 2,
+		            (width - display_len(words[i].word)) / 2 + 1,
+		            words[i].reverse_video ? "\033[7m" : "",
+		            words[i].word,
+		            words[i].reverse_video ? "\033[27m" : "") < 0)
+			goto fail;
+		if (fflush(stdout))
+			goto fail;
 	}
 
-	t (setitimer(ITIMER_REAL, &interval, NULL));
+	if (setitimer(ITIMER_REAL, &interval, NULL))
+		goto fail;
 	(void) read(ttyfd, &c, sizeof(c));
 
 done:
@@ -383,73 +377,77 @@ fail:
 }
 
 
-int main(int argc, char *argv[])
+int
+main(int argc, char *argv[])
 {
-	int dashed = 0;
 	long rate = get_word_rate();
 	char *file = NULL;
-	char *arg;
 	int fd = -1, ttyfd = -1, tty_configured = 0;
-	struct termios stty;
-	struct termios saved_stty;
+	struct termios stty, saved_stty;
 	struct stat _attr;
-
-	/* Check that we have a stdout. */
-	if (fstat(STDOUT_FILENO, &_attr))
-		t (errno == EBADF);
+	struct sigaction sa;
 
 	/* Parse arguments. */
 	argv0 = argv ? (argc--, *argv++) : "rq";
-	while (argc) {
-		if (!dashed && !strcmp(*argv, "--")) {
-			dashed = 1;
+	if (argc && argv[0][0] == '-') {
+		if (argv[0][1] == '-' && !argv[0][2]) {
+			argc--;
 			argv++;
-			argc--;
-		} else if (!dashed && **argv == '-') {
-			arg = *argv++;
-			argc--;
-			for (arg++; *arg; arg++) {
-				goto usage;
-			}
-		} else {
-			if (file)
-				goto usage;
-			file = *argv++;
-			argc--;
+		} else if (argv[0][1]) {
+			goto usage;
 		}
 	}
+	if (argc > 1)
+		goto usage;
+
+	/* Check that we have a stdout. */
+	if (fstat(STDOUT_FILENO, &_attr))
+		if (errno == EBADF)
+			goto fail;
 
 	/* Open file. */
 	if (!file || !strcmp(file, "-")) {
 		fd = STDIN_FILENO;
 	} else {
 		fd = open(file, O_RDONLY);
-		t (fd == -1);
+		if (fd < 0)
+			goto fail;
 	}
 
 	/* Load file. */
-	t (load_file(fd));
+	if (load_file(fd))
+		goto fail;
 
 	/* We do not need the file anymore. */
-	close(fd), fd = -1;
+	close(fd);
+	fd = -1;
 
 	/* Get a readable file descriptor for the controlling terminal. */
 	ttyfd = open("/dev/tty", O_RDONLY);
-	t (ttyfd == -1);
+	if (ttyfd < 0)
+		goto fail;
 
 	/* Configure terminal. */
-	t (fprintf(stdout, "\033[?1049h\033[?25l") < 0);
-	t (fflush(stdout));
-	t (tcgetattr(ttyfd, &stty));
+	if (fprintf(stdout, "\033[?1049h\033[?25l") < 0)
+		goto fail;
+	if (fflush(stdout))
+		goto fail;
+	if (tcgetattr(ttyfd, &stty))
+		goto fail;
 	saved_stty = stty;
 	stty.c_lflag &= (tcflag_t)~(ICANON | ECHO | ISIG);
-	t (tcsetattr(ttyfd, TCSAFLUSH, &stty));
+	if (tcsetattr(ttyfd, TCSAFLUSH, &stty))
+		goto fail;
 	tty_configured = 1;
 
 	/* Display file. */
-	signal(SIGALRM, sigalrm);
-	signal(SIGWINCH, sigwinch);
-	t (display_file(ttyfd, rate));
+	memset(&sa, 0, sizeof(sa));
+	sa.sa_handler = sigalrm;
+	sigaction(SIGALRM, &sa, NULL);
+	sa.sa_handler = sigwinch;
+	sigaction(SIGWINCH, &sa, NULL);
+	if (display_file(ttyfd, rate))
+		goto fail;
 
 	/* Restore terminal configurations. */
 	tcsetattr(ttyfd, TCSAFLUSH, &saved_stty);
@@ -478,7 +476,6 @@ fail:
 	return 1;
 
 usage:
-	fprintf(stderr, "%s: Invalid arguments, see `man 1 rq'.\n", argv0);
-	return 2;
+	fprintf(stderr, "usage: %s [file].\n", argv0);
+	return 1;
 }
-

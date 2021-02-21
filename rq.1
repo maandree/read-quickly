@@ -3,7 +3,7 @@
 rq \- read quickly
 .SH SYNOPSIS
 .B rq
-.RI [ FILE ]
+.RI [ file ]
 .SH DESCRIPTION
 Displays a plain-text file word-by-word in the middle
 of the terminal. Words are automatically paged in a
@@ -33,22 +33,37 @@ This should a positive integer, optionally
 followed by a unit. If no unit is specified,
 words per minute will be used. Valid units
 are (case-insensitive):
-.nf
+.RS 14
+.TP
+.B wpm
+.TQ
+.B w/m
+.TQ
+.B m
+.TQ
+.B wpmin
+.TQ
+.B w/min
+.TQ
+.B /min
+Words per minute.
 .PP
-.B \ \ \ \ \ \ \ wpm
-.B \ \ \ \ \ \ \ w/m
-.B \ \ \ \ \ \ \ m
-.B \ \ \ \ \ \ \ wpmin
-.B \ \ \ \ \ \ \ w/min
-.BR \ \ \ \ \ \ \ /min\ \ \ \  Words\ per\ minute.
-.PP
-.B \ \ \ \ \ \ \ wpsec
-.B \ \ \ \ \ \ \ w/sec
-.B \ \ \ \ \ \ \ /sec
-.B \ \ \ \ \ \ \ wps
-.B \ \ \ \ \ \ \ w/s
-.B \ \ \ \ \ \ \ /s
-.BR \ \ \ \ \ \ \ Hz\ \ \ \ \ \  Words\ per\ second.
+.TP
+.B wpsec
+.TQ
+.B w/sec
+.TQ
+.B sec
+.TQ
+.B wps
+.TQ
+.B w/s
+.TQ
+.B /s
+.TQ
+.B Hz
+Words per second.
+.Re
 .fi
 .SH COMMANDS
 .TP
@@ -75,11 +90,3 @@ This should be obvious.
 No similar or otherwise related work known.
 Please inform me if you know any. There probably
 is a bunch.
-.SH AUTHORS
-Principal author, Mattias Andrée.  See the LICENSE file for the full
-list of authors.
-.SH LICENSE
-MIT/X Consortium License.
-.SH BUGS
-Please report bugs to https://github.com/maandree/rq/issues or to
-maandree@member.fsf.org

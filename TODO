@@ -1,7 +1,5 @@
-The text shall not be centred. Rather, the position
-that is to be centred is the position where it reader
-is most likely to recognised the word quickest when
-focusing there. This point should be highlighted.
-Determining this position requires a dictionary to
-be processed.
-
+The text shall not be centred. Rather, the position that is
+to be centred is the position where it reader is most likely
+to recognised the word quickest when focusing there. This
+point should be highlighted. Determining this position
+requires a dictionary to be processed.
