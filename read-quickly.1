@@ -1,21 +1,21 @@
 .TH READ-QUICKLY 1 READ-QUICKLY
 .SH NAME
-read-quickly \- read quickly
+read-quickly \- Read quickly
 .SH SYNOPSIS
 .B read-quickly
 .RI [ file ]
 .SH DESCRIPTION
 Displays a plain-text file word-by-word in the middle
-of the terminal. Words are automatically paged in a
+of the terminal. Words are automatically paged at a
 specifiable rate, by default 2 words per second.
-This is a bit slow, you should turn it up when
-gradually until your performance has been optimised.
+This is a bit slow; you should gradually turn it up
+until your performance has been optimised.
 Repeated words will be indicated by alternating reverse
 video highlighting.
 .PP
 Escape sequences are printed as-is.
 .PP
-If no file is specified, or if \- i specified,
+If no file is specified, or if \- is specified,
 stdin will be paged.
 .PP
 .B read-quickly
@@ -29,7 +29,7 @@ The rate at which the words will be printed.
 Defaults to 120 words per minute.
 .br
 .br
-This should a positive integer, optionally
+This should be a positive integer, optionally
 followed by a unit. If no unit is specified,
 words per minute will be used. Valid units
 are (case-insensitive):
@@ -39,7 +39,7 @@ are (case-insensitive):
 .TQ
 .B w/m
 .TQ
-.B m
+.B /m
 .TQ
 .B wpmin
 .TQ
@@ -53,7 +53,7 @@ Words per minute.
 .TQ
 .B w/sec
 .TQ
-.B sec
+.B /sec
 .TQ
 .B wps
 .TQ
@@ -83,7 +83,7 @@ Exit.
 Go to the previous word.
 .TP
 .BR right ,\  down
-Go to next previous word.
+Go to the next word.
 .SH RATIONALE
 This should be obvious.
 .SH SEE ALSO

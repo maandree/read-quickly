@@ -35,7 +35,7 @@
 
 
 /**
- * The a word.
+ * A word.
  */
 struct word {
 	/**
@@ -55,7 +55,7 @@ struct word {
 static const char *argv0;
 
 /**
- * Have the terminal been resized?
+ * Has the terminal been resized?
  */
 static volatile sig_atomic_t caught_sigwinch = 1;
 
@@ -174,7 +174,7 @@ get_word_rate(void)
 
 
 /**
- * Count the number of character in a string.
+ * Count the number of characters in a string.
  * 
  * @param   s  The string.
  * @return     The number of characters in `s`.
@@ -450,7 +450,7 @@ main(int argc, char *argv[])
 	if (display_file(ttyfd, rate))
 		goto fail;
 
-	/* Restore terminal configurations. */
+	/* Restore terminal configuration. */
 	tcsetattr(ttyfd, TCSAFLUSH, &saved_stty);
 	fprintf(stdout, "\033[?25h\033[?1049l");
 	fflush(stdout);

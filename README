@@ -6,16 +6,16 @@ SYNOPSIS
 
 DESCRIPTION
 	Displays a plain-text file word-by-word in the middle
-	of the terminal. Words are automatically paged in a
+	of the terminal. Words are automatically paged at a
 	specifiable rate, by default 2 words per second.
-	This is a bit slow, you should turn it up when
-	gradually until your performance has been optimised.
-	Repeated words will be indicated by alternating reverse
-	video highlighting.
+	This is a bit slow; you should gradually turn it up
+	until your performance has been optimised. Repeated
+	words will be indicated by alternating reverse video
+	highlighting.
 
 	Escape sequences are printed as-is.
 
-	If no file is specified, or if '-' i specified, stdin
+	If no file is specified, or if '-' is specified, stdin
 	will be paged.
 
 	read-quickly uses a method called rapid serial visual
@@ -56,8 +56,8 @@ COMMANDS
 	q       Exit.
 	left    Go to the previous word.
 	up      Go to the previous word.
-	right   Go to next previous word.
-	down    Go to next previous word.
+	right   Go to the next word.
+	down    Go to the next word.
 
 RATIONALE
 	This should be obvious.
